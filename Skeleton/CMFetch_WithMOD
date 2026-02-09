@@ -1,0 +1,181 @@
+<--START 
+TRACE ON
+	#--CUSTOM MENU FETCH SCRIPT WITH MOD --#
+	#Creating Repository And Class 
+	IF (REPEXISTS("CUST") == 0) THEN) 
+	#{ 
+		CREATEREP("CUST") 
+	#} 
+	ENDIF 
+
+	IF (CLASSEXISTS("CUST","DATA") == 0)THEN 
+	#{ 
+		CREATECLASS("CUST","DATA",5) 
+	#} 
+	ENDIF 
+
+	CUST.DATA.function = CUST.DATA.functionCode
+	PRINT(CUST.DATA.function) 
+	CUST.DATA.bankId = BANCS.STDIN.contextBankId 
+	PRINT(CUST.DATA.bankId)  
+	CUST.DATA.ModTableCount = "0" 
+	
+	# TODO store key field values to cust repository 
+	CUST.DATA.userId = BANCS.STDIN.userId
+	CUST.DATA.key fields  = BANCS.INPUT.key fields 
+	PRINT(CUST.DATA.key fields )
+	
+	####Select Count from MOD table 
+	sv_s = "" 
+	sv_s = sv_s = sv_s + "ModTableCount|SELECT COUNT(1)" 
+	sv_s = sv_s + " FROM MODTABLENAME" 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId 
+	# TODO put whie loop for key fields to build the where condition 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+
+	sv_b = urhk_dbSelectWithBind(sv_s) 
+	PRINT(sv_b) 
+
+	IF(sv_b == 0) THEN 
+	#{ 
+		CUST.DATA.ModTableCount = BANCS.OUTPARAM.ModTableCount
+		PRINT(CUST.DATA.ModTableCount)
+	#}
+	ELSE
+	#{ 
+		CUST.DATA.ERRMSG = "Query Execution Failed" 
+		GOTO ERRHANDLER 
+	#}
+	ENDIF
+
+	####Function Code MODIFY/DELETE/VERIFY/CANCEL 
+	IF((CUST.DATA.function == "M") OR (CUST.DATA.function == "D") OR (CUST.DATA.function == "V") OR (CUST.DATA.function == "X")) THEN 
+	#{ 
+		IF(CUST.DATA.ModTableCount == "1") THEN 
+		#{ 
+			CUST.DATA.tableName = "MODTABLENAME" 
+			GOTO VALIDATE 
+		#} 
+		ELSE 
+		#{ 
+			CUST.DATA.tableName = "MAINTABLENAME" 
+			GOTO VALIDATE 
+		#} 
+		ENDIF 
+	#} 
+	ENDIF	 
+
+	####Function Code INQUIRE 
+	IF(CUST.DATA.function == "I") THEN 
+	#{ 
+		CUST.DATA.tableName = "MAINTABLENAME" 
+		GOTO VALIDATE 
+	#} 
+	ENDIF 
+	
+VALIDATE:
+	####Validation Query
+	IF(CUST.DATA.function  != "A") THEN
+	#{
+		sv_s = ""
+		sv_s = sv_s + "User,entityCreFlg|SELECT RCRE_USER_ID,ENTITY_CRE_FLG"
+		sv_s = sv_s + " FROM "+ALLIN.DATA.tableName "
+		sv_s = sv_s + " WHERE BANK_ID = ?SVAR"
+		PRINT(sv_s) 
+		sv_b = urhk_dbSelectWithBind(sv_s) 
+		PRINT(sv_b)
+		IF(sv_b == 0) THEN
+		#{
+			CUST.DATA.User = BANCS.OUTPARAM.User
+			CUST.DATA.entityCreFlg = BANCS.OUTPARAM.entityCreFlg
+			IF(CUST.DATA.User != CUST.DATA.userId) THEN
+			#{
+				IF(CUST.DATA.function  == "M") THEN
+				#{
+					CUST.DATA.ERRMSG = "Only the Same User can Modify this Record" 
+					GOTO ERRHANDLER 
+				#}
+			#}
+			ELSE
+			#{
+				IF(CUST.DATA.function  == "V") THEN
+				#{
+					CUST.DATA.ERRMSG = "Same User Cannot Verify the Record" 
+					GOTO ERRHANDLER 
+				#}
+				ENDIF
+			#}
+			ENDIF
+			IF(CUST.DATA.function  == "D") THEN
+			#{
+				IF(CUST.DATA.entityCreFlg  == "Y") THEN
+				#{
+					CUST.DATA.ERRMSG = "Verified Records Only Deleted " 
+					GOTO ERRHANDLER
+				#}
+				ENDIF
+			#}
+			ENDIF
+
+		#}
+		ENDIF
+	#}
+	ELSE
+	#{
+		GOTO NEXTPAGE 
+	#}
+	ENDIF
+
+	
+
+SELECTQRY: 
+	sv_s = "" 
+	sv_s = sv_s + "fieldValues|SELECT fieldsValues" 
+	sv_s = sv_s + " FROM "+CUST.DATA.tableName+"" 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId  
+	# TODO put whie loop for key fields to build the where condition 
+	sv_s = sv_s + " AND CIF_ID = ?SVAR " 
+	BANCS.INPARAM.BINDVARS = BANCS.INPARAM.BINDVARS + "|" + CUST.DATA.cifId 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+	GOTO EXECQRY 
+
+EXECQRY: 
+	sv_b = urhk_dbSelectWithBind(sv_s) 
+	PRINT(sv_b) 
+
+	IF(sv_b == 0) THEN 
+	#{ 
+		# TODO store values to cust repository 
+		CUST.DATA.fields = BANCS.OUTPARAM.fields
+		# TODO put while loop for Assinging    
+		# field values to the Corresponding field 
+		sv_u = urhk_SetOrbOut("fields| " + CUST.DATA.fields)
+		PRINT(sv_u)
+	#} 
+	ELSE 
+	#{ 
+		CUST.DATA.ERRMSG = "Error while executing query" 
+		GOTO ERRHANDLER 
+	#} 
+	ENDIF 
+
+
+NEXTPAGE: 
+	sv_u = urhk_SetOrbOut("SuccessOrFailure|Y")
+	PRINT(sv_u) 
+
+GOTO ENDOFSCRIPT 
+
+ERRHANDLER: 
+	PRINT(CUST.DATA.ERRMSG)
+	#Display Error message
+	sv_u = urhk_SetOrbOut("Error_01|ERROR^"+CUST.DATA.ERRMSG+"^dummy")
+	PRINT(sv_u)
+	EXITSCRIPT 
+	TRACE OFF 
+END--> 

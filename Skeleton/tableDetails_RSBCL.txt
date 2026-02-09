@@ -1,0 +1,12 @@
+CUST_RSBCL_TBL~C_RSBCL~Y~Y~rsbcl~Y
+CUST~RSBCL~RSBCL_Crit.scr~RSBCL_Submit.scr~3page
+licenseCode~LICENSE_CODE~VARCHAR2~50 CHAR~Y~Y~~License Code~Y~20~50~N~~a~ALPHANUM
+challanNum~CHALLAN_NUM~VARCHAR2~50 CHAR~Y~Y~~Challan Number~Y~20~50~N~~a~NUM
+liceseAcct~LICESE_ACCT~VARCHAR2~50 CHAR~N~Y~~License Account~Y~20~50~N~~b~
+frmDate~FRM_DATE~DATE~~N~Y~~From Date~Y~10~10~N~~e~
+toDate~TO_DATE~DATE~~N~Y~~To Date~N~10~10~N~~e~
+tranType~TRAN_TYPE~VARCHAR2~10 CHAR~N~Y~~Transaction Type~Y~10~10~N~~dCash,Transfer,NEFT,RTGS~
+commAmt~COMM_AMT~NUMBER~20,4~N~Y~~Commission Amount~N~15~20~N~~a~NUM
+challanAmt~CHALLAN_AMT~NUMBER~20,4~N~Y~~Challan Amount~Y~15~20~N~~a~NUM
+challanDate~CHALLAN_DATE~DATE~~N~Y~~Challan Date~N~10~10~N~~e~
+remarks~REMARKS~VARCHAR2~200 CHAR~N~Y~~Remarks~N~40~200~N~~h~

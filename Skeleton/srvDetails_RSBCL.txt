@@ -1,0 +1,8 @@
+A~A~~SRV_AddRsbclDtl_post_process_data.scr
+M~M~SRV_FetchRsbclDtlForModify_pre_process_data.scr~SRV_ModifyRsbclDtl_post_process_data.scr
+V~V~SRV_FetchRsbclDtlForVerify_pre_process_data.scr~SRV_VerifyRsbclDtl_post_process_data.scr
+X~X~SRV_FetchRsbclDtlForCancel_pre_process_data.scr~SRV_CancelRsbclDtl_post_process_data.scr
+D~D~SRV_FetchRsbclDtlForDelete_pre_process_data.scr~SRV_DeleteRsbclDtl_post_process_data.scr
+U~U~SRV_FetchRsbclDtlForUnDelete_pre_process_data.scr~SRV_UndeletRsbclDtl_post_process_data.scr
+C~C~SRV_FetchRsbclDtlForCopy_pre_process_data.scr~
+I~I~SRV_InquireRsbclDtl_pre_process_data.scr~

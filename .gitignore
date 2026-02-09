@@ -1,0 +1,5 @@
+bin/
+output/
+.classpath
+.project
+.settings/

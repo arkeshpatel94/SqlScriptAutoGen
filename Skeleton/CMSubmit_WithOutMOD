@@ -1,0 +1,196 @@
+<--START 
+TRACE ON 
+	#---CUSTOM MENU SUBMIT SCRIPT WITHOUT MOD ---#
+	#Creating Repository And Class 
+	IF (REPEXISTS("CUST") == 0) THEN) 
+	#{ 
+		CREATEREP("CUST") 
+	#} 
+	ENDIF 
+
+	IF (CLASSEXISTS("CUST","DATA") == 0)THEN 
+	#{ 
+		CREATECLASS("CUST","DATA",5) 
+	#} 
+	ENDIF 
+
+	CUST.DATA.ERRMSG = ""
+	CUST.DATA.RSTMSG = ""
+
+	CUST.DATA.tableName = "MAINTABLENAME"
+	
+	#Print Bancs Repos 
+	sv_u = urhk_B2k_PrintRepos("BANCS")
+	PRINT(sv_u)
+
+	IF(sv_u == 0) THEN
+	#{
+		IF(sv_u == 0)
+		#{
+			# TODO put while loop in java is for input fields 
+			# END OF TODO put while loop in java is for input fields 
+		#}
+		ELSE
+		#{
+			GOTO ERRHANDLER
+		#}
+		ENDIF
+	#}
+	ELSE
+	#{
+		GOTO ENDOFSCRIPT
+	#}
+	ENDIF
+	
+	CUST.DATA.updEntCreFlg = "N"
+	CUST.DATA.updDelFlg = "N"
+	CUST.DATA.function = BANCS.INPUT.funcCode
+	PRINT(CUST.DATA.function) 
+	CUST.DATA.bankId = BANCS.STDIN.contextBankId 
+	PRINT(CUST.DATA.bankId) 
+
+	####Function Code ADD 
+	IF(ALLIN.DATA.function == "A") THEN 
+	#{ 
+		ALLIN.DATA.RSTMSG = "Record Added Successfully"
+		GOTO INSERTQRY 
+	#} 
+	ENDIF 
+
+	####Function Code MODIFY 
+	IF(ALLIN.DATA.function == "M") THEN 
+	#{ 
+		ALLIN.DATA.RSTMSG = "Record Modified Successfully"
+		GOTO UPDATEQRY 
+	#} 
+	ENDIF 
+
+	####Function Code VERIFY 
+	IF(ALLIN.DATA.function == "V")  THEN 
+	#{ 
+		ALLIN.DATA.RSTMSG = "Record Verified Successfully"
+		ALLIN.DATA.updEntCreFlg = "Y"
+		GOTO UPDATEQRY 
+	#} 
+	ENDIF 
+
+	####Function Code DELETE 
+	IF(ALLIN.DATA.function == "D")  THEN	 
+	#{ 
+		ALLIN.DATA.RSTMSG = "Record Deleted Successfully"
+		ALLIN.DATA.updEntCreFlg = "Y"
+		ALLIN.DATA.updDelFlg = "Y"
+		GOTO UPDATEQRY 
+	#} 
+	ENDIF 
+
+	####Function Code UNDELETE 
+	IF(ALLIN.DATA.function == "U")  THEN
+	#{ 
+		ALLIN.DATA.RSTMSG = "Record UnDeleted Successfully"
+		ALLIN.DATA.updDelFlg = "N"
+		GOTO UPDATEQRY 
+	#} 
+	ENDIF 
+
+	### Function code is CANCEL 
+	IF(ALLIN.DATA.function == "X") THEN 
+	#{ 
+		ALLIN.DATA.RSTMSG = "Record Canceled Successfully"
+		GOTO DELETEQRY 
+	#} 
+	ENDIF
+
+GOTO ENDOFSCRIPT 
+
+INSERTQRY:
+
+	CUST.DATA.rcreUserId = BANCS.STDIN.userId
+	CUST.DATA.rcreTime = MID$(BANCS.STDIN.BODDate,0,10)
+	CUST.DATA.lchgUserId = ""
+	CUST.DATA.lchgTime = ""
+
+	sv_s = "" 
+	sv_s = sv_s + "INSERT INTO" 
+	sv_s = sv_s + " " + CUST.DATA.tableName + "" 
+	sv_s = sv_s + " VALUES() " 
+	PRINT(sv_s) 
+
+	BANCS.INPARAM.BINDVARS = Custom data field values 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+
+	GOSUB EXECQRY 
+	GOTO ENDOFSCRIPT 
+
+UPDATEQRY:
+
+	CUST.DATA.lchgUserId = BANCS.STDIN.userId
+	CUST.DATA.lchgTime = MID$(BANCS.STDIN.BODDate,0,10)
+
+	sv_s = "" 
+	sv_s = sv_s + "UPDATE " + CUST.DATA.tableName 
+	sv_s = sv_s + " SET" 
+	# TODO put whie loop for Field Values for update 
+		sv_s = sv_s + " FIELD1 = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = BANCS.INPARAM.BINDVARS + "|" + CUST.DATA.FIELD1 
+	# END OF TODO put whie loop for Field Values 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId  
+	# TODO put whie loop for key fields to build the where condition 
+		sv_s = sv_s + " CIF_ID = ?SVAR"  
+		BANCS.INPARAM.BINDVARS = BANCS.INPARAM.BINDVARS + "|" + CUST.DATA.cifId 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+	GOSUB EXECQRY 
+
+	IF((CUST.DATA.function == "V") AND (CUST.DATA.modTableCount == "1")) THEN
+	#{ 
+		CUST.DATA.tableName = "MODTABLENAME"
+		GOTO DELETEQRY
+	#} 
+	ENDIF 
+
+	GOTO ENDOFSCRIPT
+
+DELETEQRY: 
+	sv_s = "" 
+	sv_s = sv_s + "DELETE "+CUST.DATA.tableName+" "  
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId 
+	# TODO put whie loop for key fields to build the where condition 
+		sv_s = sv_s + " CIF_ID = ?SVAR " 
+		BANCS.INPARAM.BINDVARS = CUST.DATA.cifId 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+
+	GOSUB EXECQRY 
+	GOTO ENDOFSCRIPT 
+
+EXECQRY:
+	sv_u = urhk_dbSQLWithBind(sv_s)
+	PRINT(sv_u)
+
+	IF(sv_u == 1) THEN
+	#{
+		CUST.DATA.ERRMSG = "Query Execution Failed"
+		sv_t = urhk_SetOrbOut(CUST.DATA.ERRMSG)
+	#}
+	ELSE
+	#{
+		sv_u = urhk_SetOrbOut("SuccessOrFailure|Y")
+		PRINT(sv_u) 
+		sv_u = urhk_SetOrbOut("RESULT_MSG|" + CUST.DATA.RSTMSG)
+		PRINT(sv_u) 
+	#} 
+	ENDIF
+	RETURN
+
+ERRHANDLER: 
+	PRINT(CUST.DATA.ERRMSG)
+
+ENDOFSCRIPT: 
+	EXITSCRIPT 
+	TRACE OFF
+END-->

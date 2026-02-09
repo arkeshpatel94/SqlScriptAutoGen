@@ -1,0 +1,8 @@
+A~A~~SRV_AddCrncyDtl_post_process_data.scr
+M~M~SRV_FetchCrncyDtlForModify_pre_process_data.scr~SRV_ModifyCrncyDtl_post_process_data.scr
+V~V~SRV_FetchCrncyDtlForVerify_pre_process_data.scr~SRV_VerifyCrncyDtl_post_process_data.scr
+X~X~SRV_FetchCrncyDtlForCancel_pre_process_data.scr~SRV_CancelCrncyDtl_post_process_data.scr
+D~D~SRV_FetchCrncyDtlForDelete_pre_process_data.scr~SRV_DeleteCrncyDtl_post_process_data.scr
+U~U~SRV_FetchCrncyDtlForUnDelete_pre_process_data.scr~SRV_UndeleteCrncyDtl_post_process_data.scr
+C~C~SRV_FetchCrncyDtlForCopy_pre_process_data.scr~
+I~I~SRV_InquireCrncyDtl_pre_process_data.scr~

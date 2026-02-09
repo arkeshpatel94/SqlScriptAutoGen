@@ -1,0 +1,75 @@
+<--START 
+TRACE ON 
+	#--PRODUCT MENU FETCH SCRIPT WITHOUT MOD --#
+	#Creating Repository And Class 
+	IF (REPEXISTS("CUST") == 0) THEN) 
+	#{ 
+		CREATEREP("CUST") 
+	#} 
+	ENDIF 
+
+	IF (CLASSEXISTS("CUST","DATA") == 0)THEN 
+	#{ 
+		CREATECLASS("CUST","DATA",5) 
+	#} 
+	ENDIF 
+
+	CUST.DATA.function = CUST.DATA.functionCode
+	PRINT(CUST.DATA.function) 
+	CUST.DATA.bankId = BANCS.STDIN.contextBankId 
+	PRINT(CUST.DATA.bankId) 
+	CUST.DATA.ModTableCount = "0" 
+
+	# Get Product Field values using urhk_SRVGetVal 
+	sv_l = urhk_SRV_GetVal("crncyCode.key field")
+	PRINT(sv_l)
+
+	IF(sv_l == 0) THEN
+	#{
+		CUST.CNCM.key field = BANCS.OUTPARAM.srvValue
+	#}
+	ELSE
+	#{
+		CUST.CNCM.key field = ""
+	#}
+	ENDIF
+	PRINT(CUST.CNCM.key field)
+	
+	
+
+SELECTQRY: 
+	sv_s = "" 
+	sv_s = sv_s + "fieldValues|SELECT fieldsValues" 
+	sv_s = sv_s + " FROM "+CUST.DATA.tableName+"" 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId  
+	# TODO put whie loop for key fields to build the where condition 
+	sv_s = sv_s + " AND CIF_ID = ?SVAR " 
+	BANCS.INPARAM.BINDVARS = BANCS.INPARAM.BINDVARS + "|" + CUST.DATA.cifId 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+	GOTO EXECQRY 
+
+EXECQRY: 
+	sv_b = urhk_dbSelectWithBind(sv_s) 
+	PRINT(sv_b) 
+	IF(sv_b == 0) THEN 
+	#{ 
+		#TODO store values to cust repository 
+	#} 
+	ELSE 
+	#{ 
+		CUST.DATA.ERRMSG = "Error while executing query" 
+		GOTO ERRHANDLER 
+	#} 
+	ENDIF 
+	ONS.CUSTOM.custDataOut = "~PAGENAME|" + fieldValues from cust repository 
+	print(ONS.CUSTOM.custDataOut) 
+
+ERRHANDLER: 
+	PRINT(CUST.DATA.ERRMSG) 
+
+	EXITSCRIPT 
+	TRACE OFF 
+END--> 

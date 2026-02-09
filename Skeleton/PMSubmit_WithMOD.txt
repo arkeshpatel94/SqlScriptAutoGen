@@ -1,0 +1,285 @@
+<--START 
+TRACE ON 
+	#--PRODUCT MENU SUBMIT SCRIPT WITH MOD --#
+	#Creating Repository And Class 
+	IF (REPEXISTS("CUST") == 0) THEN) 
+	#{ 
+		CREATEREP("CUST") 
+	#} 
+	ENDIF 
+
+	IF (CLASSEXISTS("CUST","DATA") == 0)THEN 
+	#{ 
+		CREATECLASS("CUST","DATA",5) 
+	#} 
+	ENDIF 
+
+EXECQRY:
+	sv_u = urhk_dbSQLWithBind(sv_s)
+	PRINT(sv_u)
+	IF(sv_u == 1)
+	#{
+		CUST.DATA.ERRMSG ="Query Execution Failed"
+		sv_t = urhk_SetOrbOut(CUST.DATA.ERRMSG)
+	#}
+	ENDIF
+	RETURN
+
+	CUST.DATA.ERRMSG=""
+	#ParseONSData and store in respective custom repos variables 
+	sv_u = urhk_B2k_PrintRepos("ONS")
+	PRINT(sv_u)
+	IF(FIELDEXISTS(ONS.CUSTOM.custDataIn))THEN
+	#{
+		sv_u = urhk_ParseONSCustData(ONS.CUSTOM.custDataIn) 
+		IF(sv_u == 0)
+		#{
+			# TODO put while loop in java is for custom fields 
+			# END OF TODO put while loop in java is for custom fields 
+		#}
+		ELSE
+		#{
+			GOTO ERRHANDLER
+		#}
+		ENDIF
+	#}
+	ELSE
+	#{
+		GOTO ENDOFSCRIPT
+	#}
+	ENDIF
+
+	# Get Product Field values using urhk_SRVGetVal 
+	# TODO put while loop in java is for product fields 
+	# ENDOF TODO put while loop in java is for product fields 
+
+	CUST.DATA.updEntCreFlg = "N"
+	CUST.DATA.updDelFlg = "N"
+	CUST.DATA.function = CUST.DATA.functionCode
+	PRINT(CUST.DATA.function) 
+
+	sv_s = "" 
+	sv_s = sv_s = sv_s + "ModTableCount,modentityCreFlg,modDelFlg|SELECT COUNT(1),ENTITY_CRE_FLG,DEL_FLG" 
+	sv_s = sv_s + " FROM MODTABLENAME" 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	# TODO put whie loop for key fields to build the where condition 
+	# END OF TODO put whie loop for key fields 
+	sv_s = sv_s + " GROUP BY ENTITY_CRE_FLG,DEL_FLG" 
+	PRINT(sv_s) 
+
+	sv_b = urhk_dbSelectWithBind(sv_s) 
+	PRINT(sv_b) 
+
+	IF(sv_b == 0) THEN 
+	#{ 
+		CUST.DATA.ModTableCount = BANCS.OUTPARAM.ModTableCount
+		PRINT(CUST.DATA.ModTableCount)
+		CUST.DATA.modentityCreFlg = BANCS.OUTPARAM.modentityCreFlg
+		PRINT(CUST.DATA.modentityCreFlg)
+		CUST.DATA.modDelFlg = BANCS.OUTPARAM.modDelFlg
+		PRINT(CUST.DATA.modDelFlg)
+	#}
+	ELSE
+	#{ 
+		CUST.DATA.ERRMSG ="Query Execution Failed"
+		GOTO ERRHANDLER 
+	#}
+	ENDIF
+	sv_s = "" 
+	sv_s = sv_s + "MainTableCount,entityCreFlg,delFlg|SELECT COUNT(1),ENTITY_CRE_FLG,DEL_FLG" 
+	sv_s = sv_s + " FROM MAINTABLENAME" 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.BankId 
+	# TODO put whie loop for key fields to build the where condition 
+	# END OF TODO put whie loop for key fields 
+	sv_s = sv_s + " GROUP BY ENTITY_CRE_FLG,DEL_FLG" 
+	PRINT(sv_s) 
+
+	PRINT(BANCS.INPARAM.BINDVARS) 
+
+	sv_b = urhk_dbSelectWithBind(sv_s) 
+	PRINT(sv_b) 
+
+	IF(sv_b == 0) THEN 
+	#{ 
+		CUST.DATA.MainTableCount = BANCS.OUTPARAM.MainTableCount 
+		PRINT(CUST.DATA.MainTableCount) 
+		CUST.DATA.entityCreFlg = BANCS.OUTPARAM.entityCreFlg 
+		PRINT(CUST.DATA.entityCreFlg) 
+		CUST.DATA.delFlg = BANCS.OUTPARAM.delFlg 
+		PRINT(CUST.DATA.delFlg) 
+	#} 
+	ELSE 
+	#{ 
+		CUST.DATA.ERRMSG = "Query Execution Failed" 
+		GOTO ERRHANDLER 
+	#} 
+	ENDIF 
+	IF((CUST.DATA.ModTableCount == "1") OR (CUST.DATA.entityCreFlg == "N")) THEN 
+	#{ 
+	CUST.DATA.IsRecordVerified = "N" 
+	#} 
+	ELSE 
+	#{ 
+		CUST.DATA.IsRecordVerified = "Y" 
+	#} 
+	ENDIF 
+
+	IF((CUST.DATA.modDelFlg == "Y") OR (CUST.DATA.delFlg == "Y")) THEN 
+	#{ 
+		CUST.DATA.IsRecordDeleted = "Y" 
+	#} 
+	ELSE 
+	#{ 
+		CUST.DATA.IsRecordDeleted = "N" 
+	#} 
+	ENDIF 
+
+	####Function Code ADD 
+	IF(CUST.DATA.function == "A") THEN 
+	#{ 
+		CUST.DATA.tableName = "MAINTABLENAME" 
+		GOTO INSERTQRY 
+	#} 
+	ENDIF 
+
+	####Function Code MODIFY 
+	IF(CUST.DATA.function == "M")  THEN	 
+	#{ 
+		IF(CUST.DATA.ModTableCount == "1") THEN 
+		#{ 
+			CUST.DATA.tableName = "MODTABLENAME" 
+			GOTO UPDATEQRY 
+		#} 
+		ELSE 
+		#{ 
+			IF (CUST.DATA.entityCreFlg == "Y") THEN 
+			#{ 
+				CUST.DATA.tableName = "MODTABLENAME" 
+				GOTO INSERTQRY 
+			#} 
+			ELSE 
+			#{ 
+				CUST.DATA.tableName = "MAINTABLENAME" 
+				GOTO UPDATEQRY 
+			#} 
+		#} 
+		ENDIF 
+	#} 
+	ENDIF 
+
+	####Function Code VERIFY 
+	IF(CUST.DATA.function == "V")  THEN 
+	#{ 
+		CUST.DATA.tableName = "MAINTABLENAME" 
+		CUST.DATA.updEntCreFlg = "Y" 
+		GOTO UPDATEQRY 
+	#} 
+	ENDIF 
+
+	####Function Code DELETE 
+	IF(CUST.DATA.function == "D")  THEN	 
+	#{ 
+		CUST.DATA.tableName = "MODTABLENAME" 
+		CUST.DATA.updDelFlg = "Y" 
+		GOTO INSERTQRY 
+	#} 
+	ENDIF 
+
+	### Function code is cancel 
+	IF(CUST.DATA.function == "X") THEN 
+	#{ 
+		IF(CUST.DATA.ModTableCount == "1") THEN 
+		#{ 
+			CUST.DATA.tableName = "MODTABLENAME" 
+			GOTO DELETEQRY 
+		#} 
+		ELSE 
+		#{ 
+			IF (CUST.DATA.IsRecordVerified == "N") THEN 
+			#{ 
+			CUST.DATA.tableName = "MODTABLENAME" 
+			GOTO DELETEQRY 
+		#} 
+		ELSE 
+		#{ 
+			IF (CUST.DATA.IsRecordVerified == "N") THEN 
+			#{ 
+				CUST.DATA.tableName = "MAINTABLENAME" 
+				GOTO DELETEQRY 
+			#} 
+			ELSE 
+			#{ 
+				CUST.DATA.ERRMSG = "Nothing to Cancel" 
+				GOTO ERRHANDLER 
+			#} 
+			ENDIF 
+		#} 
+		ENDIF 
+	#} 
+	ENDIF 
+
+GOTO ENDOFSCRIPT 
+
+
+INSERTQRY: 
+	sv_s = "" 
+	sv_s = sv_s + "INSERT INTO" 
+	sv_s = sv_s + " " + CUST.DATA.tableName + "" 
+	sv_s = sv_s + " VALUES() " 
+	PRINT(sv_s) 
+
+	BANCS.INPARAM.BINDVARS = Custom data field values 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+
+	GOSUB EXECQRY 
+	GOTO ENDOFSCRIPT 
+
+UPDATEQRY: 
+	sv_s = "" 
+	sv_s = sv_s + "UPDATE " + CUST.DATA.tableName 
+	sv_s = sv_s + " SET" 
+	# TODO put whie loop for Field Values for update 
+		sv_s = sv_s + " FIELD1 = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = BANCS.INPARAM.BINDVARS + "|" + CUST.DATA.FIELD1 
+	# END OF TODO put whie loop for Field Values 
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId  
+	# TODO put whie loop for key fields to build the where condition 
+		sv_s = sv_s + " CIF_ID = ?SVAR"  
+		BANCS.INPARAM.BINDVARS = BANCS.INPARAM.BINDVARS + "|" + CUST.DATA.cifId 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+
+	GOSUB EXECQRY 
+
+	If (CUST.DATA.function == "V") then 
+		CUST.DATA.tableName = "MODTABLENAME" 
+		GOTO DELETEQRY 
+	ENDIF 
+
+	GOTO ENDOFSCRIPT 
+
+DELETEQRY: 
+	sv_s = "" 
+	sv_s = sv_s + "DELETE "+CUST.DATA.tableName+" "  
+	sv_s = sv_s + " WHERE BANK_ID = ?SVAR" 
+	BANCS.INPARAM.BINDVARS = CUST.DATA.bankId 
+	# TODO put whie loop for key fields to build the where condition 
+		sv_s = sv_s + " CIF_ID = ?SVAR " 
+		BANCS.INPARAM.BINDVARS = CUST.DATA.cifId 
+	# END OF TODO put whie loop for key fields 
+	PRINT(sv_s) 
+	PRINT(BANCS.INPARAM.BINDVARS) 
+
+	GOSUB EXECQRY 
+	GOTO ENDOFSCRIPT 
+
+ERRHANDLER: 
+	PRINT(CUST.DATA.ERRMSG) 
+
+ENDOFSCRIPT: 
+	EXITSCRIPT 
+	TRACE OFF 
+END--> 
