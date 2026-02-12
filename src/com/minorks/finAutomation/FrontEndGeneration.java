@@ -49,6 +49,183 @@ public class FrontEndGeneration {
 		}
 	}
 
+	// Helper: format comma-separated string as JS array content: "a","b","c"
+	private String formatJSArray(String commaSeparated) {
+		if (commaSeparated == null || commaSeparated.isEmpty()) return "";
+		String[] parts = commaSeparated.split(",");
+		StringBuilder result = new StringBuilder();
+		for (int i = 0; i < parts.length; i++) {
+			if (i > 0) result.append(",");
+			result.append("\"" + parts[i].trim() + "\"");
+		}
+		return result.toString();
+	}
+
+	// Helper: null-safe getter with default
+	private String safe(String val, String dflt) {
+		return (val != null && !val.isEmpty()) ? val : dflt;
+	}
+
+	/**
+	 * Generate mandatory wrapper functions for cd_atf_functions helpers.
+	 * These are emitted once at the top of each glink.js file.
+	 */
+	private String generateMandatoryWrappers() {
+		StringBuffer sb = new StringBuffer();
+		sb.append("// Mandatory indicator wrapper functions for cd_atf_functions helpers" + NL);
+
+		// addMandatoryCustomTextField
+		sb.append("function addMandatoryCustomTextField(fldLiteral, isMandatory, fldNameOrId, fldDataType, fldMaxLength, fldReadOnly, fldDfltValue, onBlurFunc, searcherFunc, optionalHTMLAttr) {" + NL);
+		sb.append(TAB + "var label = fldLiteral;" + NL);
+		sb.append(TAB + "if (isMandatory == \"Y\") { label = fldLiteral + '<script>setMandatory(\"Y\");<\\/script>'; }" + NL);
+		sb.append(TAB + "addCustomTextField(label, fldNameOrId, fldDataType, fldMaxLength, fldReadOnly, fldDfltValue, onBlurFunc, searcherFunc, optionalHTMLAttr);" + NL);
+		sb.append("}" + NL + NL);
+
+		// addMandatoryCustomDateField
+		sb.append("function addMandatoryCustomDateField(fldLiteral, isMandatory, fldName_ui, fldReadOnly, fldDfltValue, validationFunc, optionalHTMLAttr) {" + NL);
+		sb.append(TAB + "var label = fldLiteral;" + NL);
+		sb.append(TAB + "if (isMandatory == \"Y\") { label = fldLiteral + '<script>setMandatory(\"Y\");<\\/script>'; }" + NL);
+		sb.append(TAB + "addCustomDateField(label, fldName_ui, fldReadOnly, fldDfltValue, validationFunc, optionalHTMLAttr);" + NL);
+		sb.append("}" + NL + NL);
+
+		// addMandatoryCustomDropDown
+		sb.append("function addMandatoryCustomDropDown(fldLiteral, isMandatory, fldNameOrId, fldLiteralArr, fldValueArr, fldReadOnly, validationFunc, optionalHTMLAttr) {" + NL);
+		sb.append(TAB + "var label = fldLiteral;" + NL);
+		sb.append(TAB + "if (isMandatory == \"Y\") { label = fldLiteral + '<script>setMandatory(\"Y\");<\\/script>'; }" + NL);
+		sb.append(TAB + "addCustomDropDown(label, fldNameOrId, fldLiteralArr, fldValueArr, fldReadOnly, validationFunc, optionalHTMLAttr);" + NL);
+		sb.append("}" + NL + NL);
+
+		// addMandatoryCustomRadioButton
+		sb.append("function addMandatoryCustomRadioButton(fldLiteral, isMandatory, fldNameOrId, fldLiteralArr, fldValueArr, fldReadOnly, validationFunc, optionalHTMLAttr) {" + NL);
+		sb.append(TAB + "var label = fldLiteral;" + NL);
+		sb.append(TAB + "if (isMandatory == \"Y\") { label = fldLiteral + '<script>setMandatory(\"Y\");<\\/script>'; }" + NL);
+		sb.append(TAB + "addCustomRadioButton(label, fldNameOrId, fldLiteralArr, fldValueArr, fldReadOnly, validationFunc, optionalHTMLAttr);" + NL);
+		sb.append("}" + NL + NL);
+
+		// addMandatoryCustomCheckBox
+		sb.append("function addMandatoryCustomCheckBox(fldLiteral, isMandatory, fldNameOrId, fldReadOnly, fldDfltValue, validationFunc, optionalHTMLAttr) {" + NL);
+		sb.append(TAB + "var label = fldLiteral;" + NL);
+		sb.append(TAB + "if (isMandatory == \"Y\") { label = fldLiteral + '<script>setMandatory(\"Y\");<\\/script>'; }" + NL);
+		sb.append(TAB + "addCustomCheckBox(label, fldNameOrId, fldReadOnly, fldDfltValue, validationFunc, optionalHTMLAttr);" + NL);
+		sb.append("}" + NL + NL);
+
+		return sb.toString();
+	}
+
+	/**
+	 * Append the helper call for a single field based on its fieldType.
+	 * After each helper call, sets the element name to include subGroupName.
+	 */
+	private void appendFieldHelperCall(StringBuffer sb, FieldDetails fd, String fltCode) {
+		String fieldType = safe(fd.getFieldType(), "a");
+		String mand = "Y".equals(fd.getMandatory()) ? "Y" : "N";
+		String maxLen = safe(fd.getMaxLength(), "50");
+		String readOnly = "Y".equals(fd.getReadOnly()) ? "Y" : "N";
+		String defaultVal = safe(fd.getDefaultValue(), "");
+		String onBlur = safe(fd.getOnBlurFunction(), "");
+		String htmlAttr = safe(fd.getHtmlAttributes(), "");
+		String customVal = safe(fd.getCustomValidation(), "");
+		String size = safe(fd.getFieldSize(), "20");
+
+		sb.append(NL + TAB + "//" + fd.getIdName() + NL);
+
+		if ("a".equals(fieldType)) {
+			sb.append(TAB + "addMandatoryCustomTextField(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "\", \"String\", \"" + maxLen + "\", \"" + readOnly + "\", \"" + defaultVal + "\", \"" + onBlur + "\", \"\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+
+		} else if ("b".equals(fieldType) || "c".equals(fieldType)) {
+			String searcherCfg = fd.getSearcherConfig();
+			String searcher;
+			if (searcherCfg != null && !searcherCfg.isEmpty()) {
+				searcher = searcherCfg + "(document.forms[0]." + fd.getIdName() + ")";
+			} else {
+				searcher = fd.getIdName() + "Searcher(document.forms[0]." + fd.getIdName() + ")";
+			}
+			sb.append(TAB + "addMandatoryCustomTextField(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "\", \"String\", \"" + maxLen + "\", \"" + readOnly + "\", \"" + defaultVal + "\", \"" + onBlur + "\", \"" + searcher + "\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+
+		} else if ("d".equals(fieldType)) {
+			String labels = safe(fd.getFieldTypeLabels(), "");
+			String values = safe(fd.getFieldTypeValueCodes(), "");
+			sb.append(TAB + "addMandatoryCustomDropDown(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "\", new Array(" + formatJSArray(labels) + "), new Array(" + formatJSArray(values) + "), \"" + readOnly + "\", \"" + customVal + "\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+
+		} else if ("e".equals(fieldType)) {
+			sb.append(TAB + "addMandatoryCustomDateField(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "_ui\", \"" + readOnly + "\", \"" + defaultVal + "\", \"" + customVal + "\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "_ui\").name = subGroupName + \"." + fd.getIdName() + "_ui\";" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+
+		} else if ("f".equals(fieldType)) {
+			String labels = safe(fd.getFieldTypeLabels(), "");
+			String values = safe(fd.getFieldTypeValueCodes(), "");
+			sb.append(TAB + "addMandatoryCustomRadioButton(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "\", new Array(" + formatJSArray(labels) + "), new Array(" + formatJSArray(values) + "), \"" + readOnly + "\", \"" + customVal + "\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+
+		} else if ("g".equals(fieldType)) {
+			sb.append(TAB + "addMandatoryCustomCheckBox(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "\", \"" + readOnly + "\", \"" + defaultVal + "\", \"" + customVal + "\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+
+		} else if ("h".equals(fieldType)) {
+			// Textarea - no cd_atf_functions helper, use raw document.write
+			String mandHTML = "Y".equals(fd.getMandatory()) ? "<script>setMandatory(\\\"Y\\\");<\\/script>" : "";
+			sb.append(TAB + "with (document){" + NL);
+			sb.append(TAB + "write('<td class=\"textlabel\">' + jspResArr.get(\"" + fltCode + "\") + '" + mandHTML + "</td>');" + NL);
+			sb.append(TAB + "write('<td>');" + NL);
+			sb.append(TAB + "write('<textarea class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" rows=\"3\" cols=\"" + size + "\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '></textarea>');" + NL);
+			sb.append(TAB + "write('</td>');" + NL);
+			sb.append(TAB + "}" + NL);
+
+		} else {
+			// Default text input
+			sb.append(TAB + "addMandatoryCustomTextField(jspResArr.get(\"" + fltCode + "\"), \"" + mand + "\", \"" + fd.getIdName() + "\", \"String\", \"" + maxLen + "\", \"" + readOnly + "\", \"" + defaultVal + "\", \"" + onBlur + "\", \"\", \"" + htmlAttr + "\");" + NL);
+			sb.append(TAB + "document.getElementById(\"" + fd.getIdName() + "\").name = subGroupName + \"." + fd.getIdName() + "\";" + NL);
+		}
+	}
+
+	/**
+	 * Append field with layout positioning (L/R/FULL) and section grouping.
+	 */
+	private void appendFieldWithLayout(StringBuffer sb, ArrayList<FieldDetails> fields, int index, String fltCode) {
+		FieldDetails fd = fields.get(index);
+		String layout = safe(fd.getLayoutPosition(), "FULL");
+		String section = fd.getSectionName();
+
+		// Section sub-header
+		if (section != null && !section.isEmpty()) {
+			// Check if this is a new section
+			boolean isNewSection = true;
+			if (index > 0) {
+				String prevSection = fields.get(index - 1).getSectionName();
+				if (section.equals(prevSection)) isNewSection = false;
+			}
+			if (isNewSection) {
+				sb.append(TAB + "addSubHeader(\"" + section + "\", 5);" + NL);
+			}
+		}
+
+		if ("R".equals(layout)) {
+			// R follows an L - add column spacer, field, then close row
+			sb.append(TAB + "columnAlignment();" + NL);
+			appendFieldHelperCall(sb, fd, fltCode);
+			sb.append(TAB + "rowEnd();" + NL);
+		} else {
+			// L or FULL - start new row
+			sb.append(TAB + "rowStart();" + NL);
+			appendFieldHelperCall(sb, fd, fltCode);
+
+			// Check if next field is R
+			boolean nextIsR = false;
+			if ("L".equals(layout) && index + 1 < fields.size()) {
+				String nextLayout = safe(fields.get(index + 1).getLayoutPosition(), "FULL");
+				if ("R".equals(nextLayout)) nextIsR = true;
+			}
+			if (!nextIsR) {
+				sb.append(TAB + "columnAlignment();" + NL);
+				sb.append(TAB + "rowEnd();" + NL);
+			}
+		}
+	}
+
 	/**
 	 * Main entry point - generates all front-end files
 	 */
@@ -503,7 +680,7 @@ public class FrontEndGeneration {
 		System.out.println("Generated: javascripts/jspjs/INFENG/" + menuName + "_res_INFENG.js");
 	}
 
-	// ===================== CRIT GLINK JS =====================
+	// ===================== CRIT GLINK JS (REFACTORED) =====================
 
 	private void generateCritGlinkJS(ArrayList<?> fieldList, String basePath) {
 		StringBuffer sb = new StringBuffer();
@@ -540,11 +717,15 @@ public class FrontEndGeneration {
 			fltCancel = "FLT" + (localFlt++);
 		}
 
+		// Mandatory wrapper functions
+		sb.append(generateMandatoryWrappers());
+
 		// printBlock
 		sb.append("function printBlock()" + NL + "{" + NL);
 		sb.append(TAB + "writeCustomHeader(\"" + menuName + "_crit\");" + NL);
-		sb.append(TAB + "with (document){" + NL);
 
+		// Outer page structure (raw HTML)
+		sb.append(TAB + "with (document){" + NL);
 		sb.append(TAB + "write('<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"ctable\">');" + NL);
 		sb.append(TAB + "write('<tr>');" + NL);
 		sb.append(TAB + "write('<td>');" + NL);
@@ -557,15 +738,13 @@ public class FrontEndGeneration {
 		sb.append(TAB + "write('<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">');" + NL);
 		sb.append(TAB + "write('<tr>');" + NL);
 		sb.append(TAB + "write('<td valign=\"top\">');" + NL);
-		sb.append(TAB + "write('<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"tableborder\">');" + NL);
-		sb.append(TAB + "write('<tr>');" + NL);
-		sb.append(TAB + "write('<td>');" + NL);
-		sb.append(TAB + "write('<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"innertable\">');" + NL);
-		sb.append(TAB + "write('<tr>');" + NL);
-		sb.append(TAB + "write('<td>');" + NL);
-		sb.append(TAB + "write('<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"innertabletop1\">');" + NL);
+		sb.append(TAB + "} //End with()" + NL + NL);
 
-		// Help link
+		// setTableHeader (replaces tableborder > innertable > innertabletop1 nesting)
+		sb.append(TAB + "setTableHeader();" + NL + NL);
+
+		// Help link (raw HTML)
+		sb.append(TAB + "with (document){" + NL);
 		sb.append(TAB + "write('<tr>');" + NL);
 		sb.append(TAB + "write('<td height=\"25\" colspan=\"5\" align=\"right\">');" + NL);
 		sb.append(TAB + "write('<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">');" + NL);
@@ -579,10 +758,12 @@ public class FrontEndGeneration {
 		sb.append(TAB + "write('</table>');" + NL);
 		sb.append(TAB + "write('</td>');" + NL);
 		sb.append(TAB + "write('</tr>');" + NL);
+		sb.append(TAB + "} //End with()" + NL);
 
-		// FuncCode dropdown
+		// FuncCode dropdown (raw HTML)
 		if ("Y".equals(isFuncCodePresent)) {
 			sb.append(NL + TAB + "//FUNCTION" + NL);
+			sb.append(TAB + "with (document){" + NL);
 			sb.append(TAB + "write('<tr>');" + NL);
 			sb.append(TAB + "write('<td class=\"textlabel\" style=\"height: 15px\">' + jspResArr.get(\"" + fltFunc + "\") + '<script>setMandatory(\"Y\");</script></td>');" + NL);
 			sb.append(TAB + "write('<td class=\"textfield\">');" + NL);
@@ -597,67 +778,18 @@ public class FrontEndGeneration {
 			sb.append(TAB + "write('</td>');" + NL);
 			sb.append(TAB + "write('<td class=\"columnwidth\"> </td>');" + NL);
 			sb.append(TAB + "write('</tr>');" + NL);
+			sb.append(TAB + "} //End with()" + NL);
 		}
 
-		// Key fields
-		int sLnkCounter = 2;
+		// Key fields using cd_atf_functions helpers
 		for (int i = 0; i < keyFields.size(); i++) {
-			FieldDetails fd = keyFields.get(i);
-			String fltCode = keyFltCodes.get(i);
-			String mand = "Y".equals(fd.getMandatory()) ? "<script>setMandatory(\\\"Y\\\");</script>" : "";
-
-			sb.append(NL + TAB + "//" + fd.getIdName() + NL);
-			sb.append(TAB + "write('<tr>');" + NL);
-			sb.append(TAB + "write('<td class=\"textlabel\" style=\"height: 15px\">' + jspResArr.get(\"" + fltCode + "\") + '" + mand + "</td>');" + NL);
-			sb.append(TAB + "write('<td class=\"textfield\">');" + NL);
-
-			String fieldType = fd.getFieldType();
-			if (fieldType == null) fieldType = "a";
-
-			String size = (fd.getFieldSize() != null) ? fd.getFieldSize() : "20";
-			String maxLen = (fd.getMaxLength() != null) ? fd.getMaxLength() : "50";
-
-			if ("a".equals(fieldType)) {
-				sb.append(TAB + "write('<input type=\"text\" class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" size=\"" + size + "\" maxlength=\"" + maxLen + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '>');" + NL);
-			} else if ("b".equals(fieldType) || "c".equals(fieldType)) {
-				sb.append(TAB + "write('<input hotKeyId=\"search" + (99-i) + "\" type=\"text\" maxlength=\"" + maxLen + "\" class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '>');" + NL);
-				sb.append(TAB + "write('&nbsp;<a id=\"sLnk" + (sLnkCounter++) + "\" href=\"javascript:" + fd.getIdName() + "Searcher(document.forms[0]." + fd.getIdName() + ");\">');" + NL);
-				sb.append(TAB + "write('<img border=\"0\" height=\"17\" hotKeyId=\"search" + (99-i) + "\" src=\"../Renderer/images/'+applangcode+'/search_icon.gif\" width=\"16\">');" + NL);
-				sb.append(TAB + "write('</a>');" + NL);
-			} else if ("e".equals(fieldType)) {
-				sb.append(TAB + "write('<input hotKeyId=\"calender1\" type=\"text\" class=\"textfieldfont\" fdt=\"uidate\" fmnd=\"Y\" mnebl=\"false\" name=\"' + subGroupName + '." + fd.getIdName() + "_ui\" id=\"" + fd.getIdName() + "_ui\">');" + NL);
-				sb.append(TAB + "write('<a href=\"javascript:openDate(document.forms[0]." + fd.getIdName() + "_ui,BODDate)\" id=\"sLnk" + (sLnkCounter++) + "\"><img align=\"absmiddle\" alt=\"Date picker\" border=\"0\" height=\"19\" hotKeyId=\"calender1\" src=\"../Renderer/images/'+applangcode+'/calender.gif\" width=\"24\" class=\"img\">');" + NL);
-				sb.append(TAB + "write('</a>');" + NL);
-			} else if ("d".equals(fieldType)) {
-				sb.append(TAB + "write('<select name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + ' class=\"listboxfont\">');" + NL);
-				sb.append(TAB + "write('<option value=\"\">--Select--</option>');" + NL);
-				if (fd.getFieldTypeValues() != null) {
-					String[] opts = fd.getFieldTypeValues().split(",");
-					for (String opt : opts) {
-						opt = opt.trim();
-						sb.append(TAB + "write('<option value=\"" + opt + "\">" + opt + "</option>');" + NL);
-					}
-				}
-				sb.append(TAB + "write('</select>');" + NL);
-			} else if ("h".equals(fieldType)) {
-				sb.append(TAB + "write('<textarea class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" rows=\"3\" cols=\"" + size + "\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '></textarea>');" + NL);
-			} else {
-				// Default text input
-				sb.append(TAB + "write('<input type=\"text\" class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" size=\"" + size + "\" maxlength=\"" + maxLen + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '>');" + NL);
-			}
-
-			sb.append(TAB + "write('</td>');" + NL);
-			sb.append(TAB + "write('</tr>');" + NL);
+			appendFieldWithLayout(sb, keyFields, i, keyFltCodes.get(i));
 		}
 
-		// Close tables
-		sb.append(NL + TAB + "write('</table>');" + NL);
-		sb.append(TAB + "write('</td>');" + NL);
-		sb.append(TAB + "write('</tr>');" + NL);
-		sb.append(TAB + "write('</table>');" + NL);
-		sb.append(TAB + "write('</td>');" + NL);
-		sb.append(TAB + "write('</tr>');" + NL);
-		sb.append(TAB + "write('</table>');" + NL);
+		// setTableFooter + close outer structure
+		sb.append(NL + TAB + "setTableFooter();" + NL + NL);
+
+		sb.append(TAB + "with (document){" + NL);
 		sb.append(TAB + "write('</td>');" + NL);
 		sb.append(TAB + "write('</tr>');" + NL);
 		sb.append(TAB + "write('</table>');" + NL);
@@ -668,7 +800,7 @@ public class FrontEndGeneration {
 		sb.append(TAB + "} //End with()" + NL);
 		sb.append("} //End function" + NL + NL);
 
-		// printFooterBlock
+		// printFooterBlock (unchanged)
 		sb.append("function printFooterBlock()" + NL + "{" + NL);
 		sb.append(TAB + "with (document) {" + NL);
 		sb.append(TAB + "if ((sReferralMode == 'I')||(sReferralMode == 'S')){" + NL);
@@ -689,7 +821,7 @@ public class FrontEndGeneration {
 		sb.append(TAB + "} //End with()" + NL);
 		sb.append("}//End function" + NL + NL);
 
-		// fnOnLoad
+		// fnOnLoad (unchanged)
 		sb.append("function fnOnLoad()" + NL + "{" + NL);
 		sb.append(TAB + "var ObjForm = document.forms[0];" + NL + NL);
 		sb.append(TAB + "initFocusHandler();" + NL + NL);
@@ -711,13 +843,13 @@ public class FrontEndGeneration {
 		sb.append(TAB + "post_ONLOAD('" + menuName + "_crit',this);" + NL);
 		sb.append("}" + NL + NL);
 
-		// fnCheckMandatoryFields
+		// fnCheckMandatoryFields (unchanged)
 		sb.append("function fnCheckMandatoryFields()" + NL + "{" + NL);
 		sb.append(TAB + "var ObjForm = document.forms[0];" + NL);
 		sb.append(TAB + "return true;" + NL);
 		sb.append("}" + NL + NL);
 
-		// fnPopulateControlValues
+		// fnPopulateControlValues (unchanged)
 		sb.append("function fnPopulateControlValues() " + NL + "{" + NL);
 		sb.append(TAB + "var ObjForm = document.forms[0];" + NL);
 		if ("Y".equals(isFuncCodePresent)) {
@@ -728,7 +860,7 @@ public class FrontEndGeneration {
 		}
 		sb.append("}" + NL + NL);
 
-		// ONCLICK1 - Go/Accept
+		// ONCLICK1, ONCLICK2, pre_ONCLICK (unchanged)
 		sb.append("function " + menuName + "_crit_ONCLICK1(obj,p1)" + NL + "{" + NL);
 		sb.append(TAB + "var retVal = \"\";" + NL);
 		sb.append(TAB + "if (preEventCall('" + menuName + "_crit',obj,'ONCLICK') == false) { " + NL);
@@ -743,7 +875,6 @@ public class FrontEndGeneration {
 		sb.append(TAB + "return (retVal == undefined) ? true : retVal;" + NL);
 		sb.append("}" + NL + NL);
 
-		// ONCLICK2 - Clear
 		sb.append("function " + menuName + "_crit_ONCLICK2(obj)" + NL + "{" + NL);
 		sb.append(TAB + "var retVal = \"\";" + NL);
 		sb.append(TAB + "if (preEventCall('" + menuName + "_crit',obj,'ONCLICK') == false) { " + NL);
@@ -758,7 +889,6 @@ public class FrontEndGeneration {
 		sb.append(TAB + "return (retVal == undefined) ? true : retVal; " + NL);
 		sb.append("}" + NL + NL);
 
-		// pre_ONCLICK
 		sb.append("function " + menuName + "_pre_ONCLICK()" + NL + "{" + NL);
 		sb.append(TAB + "setFieldsToCustomData(\"funcCode\");" + NL);
 		sb.append("}" + NL + NL);
@@ -767,7 +897,7 @@ public class FrontEndGeneration {
 		System.out.println("Generated: javascripts/" + menuName + "/" + menuName + "_crit_glink.js");
 	}
 
-	// ===================== DET GLINK JS =====================
+	// ===================== DET GLINK JS (REFACTORED) =====================
 
 	private void generateDetGlinkJS(ArrayList<?> fieldList, String basePath) {
 		StringBuffer sb = new StringBuffer();
@@ -818,18 +948,15 @@ public class FrontEndGeneration {
 			if ("e".equals(fd.getFieldType())) { hasDateFields = true; break; }
 		}
 
+		// Mandatory wrapper functions
+		sb.append(generateMandatoryWrappers());
+
 		// printBlock
 		sb.append("function printBlock()" + NL + "{" + NL);
 		sb.append(TAB + "writeCustomHeader(\"" + menuName + "_det\");" + NL);
+
+		// Outer page structure (raw HTML)
 		sb.append(TAB + "with (document){" + NL);
-
-		// Hidden date fields
-		for (FieldDetails fd : dataFields) {
-			if ("e".equals(fd.getFieldType())) {
-				sb.append(TAB + "write('<input type=\"hidden\" id=\"date\" fdt=\"fdate\" mneb1=\"N\" vFldId=\"" + fd.getIdName() + "_ui\" name=\"' + subGroupName + '." + fd.getIdName() + "\">');" + NL);
-			}
-		}
-
 		sb.append(TAB + "write('<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"ctable\">');" + NL);
 		sb.append(TAB + "write('<tr>');" + NL);
 		sb.append(TAB + "write('<td>');" + NL);
@@ -866,20 +993,18 @@ public class FrontEndGeneration {
 		sb.append(TAB + "write('</table>');" + NL);
 		sb.append(TAB + "write('<br />');" + NL);
 
-		// Details block
+		// Details block outer structure
 		sb.append(TAB + "write('<!-- DETAILSBLOCK-BEGIN -->');" + NL);
 		sb.append(TAB + "write('<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">');" + NL);
 		sb.append(TAB + "write('<tr>');" + NL);
 		sb.append(TAB + "write('<td valign=\"top\">');" + NL);
-		sb.append(TAB + "write('<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"table\">');" + NL);
-		sb.append(TAB + "write('<tr>');" + NL);
-		sb.append(TAB + "write('<td>');" + NL);
-		sb.append(TAB + "write('<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"innertable\">');" + NL);
-		sb.append(TAB + "write('<tr>');" + NL);
-		sb.append(TAB + "write('<td>');" + NL);
-		sb.append(TAB + "write('<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" class=\"innertabletop1\">');" + NL);
+		sb.append(TAB + "} //End with()" + NL + NL);
 
-		// Help link
+		// setTableHeader
+		sb.append(TAB + "setTableHeader();" + NL + NL);
+
+		// Help link (raw HTML)
+		sb.append(TAB + "with (document){" + NL);
 		sb.append(TAB + "write('<tr>');" + NL);
 		sb.append(TAB + "write('<td height=\"25\" colspan=\"5\" align=\"right\">');" + NL);
 		sb.append(TAB + "write('<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">');" + NL);
@@ -893,64 +1018,17 @@ public class FrontEndGeneration {
 		sb.append(TAB + "write('</table>');" + NL);
 		sb.append(TAB + "write('</td>');" + NL);
 		sb.append(TAB + "write('</tr>');" + NL);
+		sb.append(TAB + "} //End with()" + NL);
 
-		// Data fields
-		int sLnkCounter = 2;
+		// Data fields using cd_atf_functions helpers
 		for (int i = 0; i < dataFields.size(); i++) {
-			FieldDetails fd = dataFields.get(i);
-			String fltCode = dataFltCodes.get(i);
-			String mand = "Y".equals(fd.getMandatory()) ? "<script>setMandatory(\\\"Y\\\");</script>" : "";
-			String fieldType = fd.getFieldType();
-			if (fieldType == null) fieldType = "a";
-			String size = (fd.getFieldSize() != null) ? fd.getFieldSize() : "20";
-			String maxLen = (fd.getMaxLength() != null) ? fd.getMaxLength() : "50";
-
-			sb.append(NL + TAB + "//" + fd.getIdName() + NL);
-			sb.append(TAB + "write('<tr>');" + NL);
-			sb.append(TAB + "write('<td class=\"textlabel\">' + jspResArr.get(\"" + fltCode + "\") + '" + mand + "</td>');" + NL);
-			sb.append(TAB + "write('<td class=\"textfield\">');" + NL);
-
-			if ("a".equals(fieldType)) {
-				sb.append(TAB + "write('<input type=\"text\" class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" size=\"" + size + "\" maxlength=\"" + maxLen + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '>');" + NL);
-			} else if ("b".equals(fieldType) || "c".equals(fieldType)) {
-				sb.append(TAB + "write('<input hotKeyId=\"search" + (99 - i) + "\" type=\"text\" maxlength=\"" + maxLen + "\" class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '>');" + NL);
-				sb.append(TAB + "write('&nbsp;<a id=\"sLnk" + (sLnkCounter++) + "\" href=\"javascript:" + fd.getIdName() + "Searcher(document.forms[0]." + fd.getIdName() + ");\">');" + NL);
-				sb.append(TAB + "write('<img border=\"0\" height=\"17\" hotKeyId=\"search" + (99 - i) + "\" src=\"../Renderer/images/'+applangcode+'/search_icon.gif\" width=\"16\">');" + NL);
-				sb.append(TAB + "write('</a>');" + NL);
-			} else if ("d".equals(fieldType)) {
-				sb.append(TAB + "write('<select name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + ' class=\"listboxfont\">');" + NL);
-				sb.append(TAB + "write('<option value=\"\">----Select----</option>');" + NL);
-				if (fd.getFieldTypeValues() != null) {
-					String[] opts = fd.getFieldTypeValues().split(",");
-					for (String opt : opts) {
-						opt = opt.trim();
-						sb.append(TAB + "write('<option value=\"" + opt + "\">" + opt + "</option>');" + NL);
-					}
-				}
-				sb.append(TAB + "write('</select>');" + NL);
-			} else if ("e".equals(fieldType)) {
-				sb.append(TAB + "write('<input hotKeyId=\"calender1\" type=\"text\" class=\"textfieldfont\" fdt=\"uidate\" fmnd=\"Y\" mnebl=\"false\" onBlur=\"javascript: return " + menuName + "_det_ONBLUR1(this,this,this);\" name=\"' + subGroupName + '." + fd.getIdName() + "_ui\" id=\"" + fd.getIdName() + "_ui\">');" + NL);
-				sb.append(TAB + "write('<a href=\"javascript:openDate(document.forms[0]." + fd.getIdName() + "_ui,BODDate)\" id=\"sLnk" + (sLnkCounter++) + "\"><img align=\"absmiddle\" alt=\"Date picker\" border=\"0\" height=\"19\" hotKeyId=\"calender1\" src=\"../Renderer/images/'+applangcode+'/calender.gif\" width=\"24\" class=\"img\">');" + NL);
-				sb.append(TAB + "write('</a>');" + NL);
-			} else if ("h".equals(fieldType)) {
-				sb.append(TAB + "write('<textarea class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" rows=\"3\" cols=\"" + size + "\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '></textarea>');" + NL);
-			} else {
-				sb.append(TAB + "write('<input type=\"text\" class=\"textfieldfont\" name=\"' + subGroupName + '." + fd.getIdName() + "\" id=\"" + fd.getIdName() + "\" size=\"" + size + "\" maxlength=\"" + maxLen + "\" fdt=\"String\" ' + " + menuName + "Props.get(\"" + fd.getIdName() + "_ENABLED\") + '>');" + NL);
-			}
-
-			sb.append(TAB + "write('</td>');" + NL);
-			sb.append(TAB + "write('<td class=\"columnwidth\"> </td>');" + NL);
-			sb.append(TAB + "write('</tr>');" + NL);
+			appendFieldWithLayout(sb, dataFields, i, dataFltCodes.get(i));
 		}
 
-		// Close tables
-		sb.append(NL + TAB + "write('</table>');" + NL);
-		sb.append(TAB + "write('</td>');" + NL);
-		sb.append(TAB + "write('</tr>');" + NL);
-		sb.append(TAB + "write('</table>');" + NL);
-		sb.append(TAB + "write('</td>');" + NL);
-		sb.append(TAB + "write('</tr>');" + NL);
-		sb.append(TAB + "write('</table>');" + NL);
+		// setTableFooter + close outer structure
+		sb.append(NL + TAB + "setTableFooter();" + NL + NL);
+
+		sb.append(TAB + "with (document){" + NL);
 		sb.append(TAB + "write('</td>');" + NL);
 		sb.append(TAB + "write('</tr>');" + NL);
 		sb.append(TAB + "write('</table>');" + NL);
@@ -961,7 +1039,7 @@ public class FrontEndGeneration {
 		sb.append(TAB + "} //End with()" + NL);
 		sb.append("} //End function" + NL + NL);
 
-		// printFooterBlock
+		// printFooterBlock (unchanged)
 		sb.append("function printFooterBlock()" + NL + "{" + NL);
 		sb.append(TAB + "with (document) {" + NL);
 		sb.append(TAB + "if ((sReferralMode == 'I')||(sReferralMode == 'S')){" + NL);
@@ -991,7 +1069,7 @@ public class FrontEndGeneration {
 		sb.append(TAB + "} //End with()" + NL);
 		sb.append("}//End function" + NL + NL);
 
-		// fnOnLoad
+		// fnOnLoad (unchanged)
 		sb.append("function fnOnLoad()" + NL + "{" + NL);
 		sb.append(TAB + "var ObjForm = document.forms[0];" + NL + NL);
 		sb.append(TAB + "initFocusHandler();" + NL + NL);
@@ -1032,13 +1110,13 @@ public class FrontEndGeneration {
 		sb.append(NL + TAB + "post_ONLOAD('" + menuName + "_det',this);" + NL);
 		sb.append("}" + NL + NL);
 
-		// fnCheckMandatoryFields
+		// fnCheckMandatoryFields (unchanged)
 		sb.append("function fnCheckMandatoryFields()" + NL + "{" + NL);
 		sb.append(TAB + "var ObjForm = document.forms[0];" + NL);
 		sb.append(TAB + "return true;" + NL);
 		sb.append("}" + NL + NL);
 
-		// fnPopulateControlValues
+		// fnPopulateControlValues (unchanged)
 		sb.append("function fnPopulateControlValues() " + NL + "{" + NL);
 		sb.append(TAB + "var ObjForm = document.forms[0];" + NL);
 		for (FieldDetails fd : dataFields) {
@@ -1052,7 +1130,7 @@ public class FrontEndGeneration {
 		}
 		sb.append("}" + NL + NL);
 
-		// ONCLICK handlers
+		// ONCLICK handlers (unchanged)
 		sb.append("function " + menuName + "_det_ONCLICK1(obj,p1)" + NL + "{" + NL);
 		sb.append(TAB + "var retVal = \"\";" + NL);
 		sb.append(TAB + "if (preEventCall('" + menuName + "_det',obj,'ONCLICK') == false) { return false; }" + NL);
@@ -1069,7 +1147,7 @@ public class FrontEndGeneration {
 		sb.append(TAB + "return (retVal == undefined) ? true : retVal;" + NL);
 		sb.append("}" + NL + NL);
 
-		// Date ONBLUR handler
+		// Date ONBLUR handler (unchanged)
 		if (hasDateFields) {
 			sb.append("function " + menuName + "_det_ONBLUR1(obj,p1,p2)" + NL + "{" + NL);
 			sb.append(TAB + "var retVal = \"\";" + NL);
@@ -1086,7 +1164,7 @@ public class FrontEndGeneration {
 		System.out.println("Generated: javascripts/" + menuName + "/" + menuName + "_det_glink.js");
 	}
 
-	// ===================== RES GLINK JS =====================
+	// ===================== RES GLINK JS (UNCHANGED) =====================
 
 	private void generateResGlinkJS(String basePath) {
 		int localFlt = 900001;
@@ -1166,7 +1244,7 @@ public class FrontEndGeneration {
 		System.out.println("Generated: javascripts/" + menuName + "/" + menuName + "_res_glink.js");
 	}
 
-	// ===================== CRIT LINK JS (Validation) =====================
+	// ===================== CRIT LINK JS - ENHANCED VALIDATION =====================
 
 	private void generateCritLinkJS(ArrayList<?> fieldList, String basePath) {
 		StringBuffer sb = new StringBuffer();
@@ -1178,12 +1256,7 @@ public class FrontEndGeneration {
 		sb.append(TAB + TAB + "}" + NL);
 
 		if ("Y".equals(isFuncCodePresent)) {
-			sb.append(TAB + TAB + "if(fnIsNull(document.forms[0].funcCode.value))" + NL);
-			sb.append(TAB + TAB + "{" + NL);
-			sb.append(TAB + TAB + TAB + "alert(\"Select function Code\");" + NL);
-			sb.append(TAB + TAB + TAB + "document.forms[0].funcCode.focus();" + NL);
-			sb.append(TAB + TAB + TAB + "return false;" + NL);
-			sb.append(TAB + TAB + "}" + NL);
+			sb.append(TAB + TAB + "if(!checkFieldMandatory(\"funcCode\", \"Select Function Code\")) { return false; }" + NL);
 		}
 
 		for (int i = 0; i < fieldList.size(); i++) {
@@ -1192,76 +1265,21 @@ public class FrontEndGeneration {
 
 			String lit = (fd.getLiteralName() != null) ? fd.getLiteralName() : fd.getIdName();
 			String valType = fd.getValidationType();
-
-			if ("Y".equals(fd.getMandatory())) {
-				sb.append(TAB + TAB + "if(fnIsNull(document.forms[0]." + fd.getIdName() + ".value))" + NL);
-				sb.append(TAB + TAB + "{" + NL);
-				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + "\");" + NL);
-				sb.append(TAB + TAB + TAB + "document.forms[0]." + fd.getIdName() + ".focus();" + NL);
-				sb.append(TAB + TAB + TAB + "return false;" + NL);
-				sb.append(TAB + TAB + "}" + NL);
-			}
-
-			if ("NUM".equals(valType)) {
-				sb.append(TAB + TAB + "if(isNaN(document.forms[0]." + fd.getIdName() + ".value))" + NL);
-				sb.append(TAB + TAB + "{" + NL);
-				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + " in Numbers\");" + NL);
-				sb.append(TAB + TAB + TAB + "document.forms[0]." + fd.getIdName() + ".focus();" + NL);
-				sb.append(TAB + TAB + TAB + "return false;" + NL);
-				sb.append(TAB + TAB + "}" + NL);
-			} else if ("ALPHA".equals(valType)) {
-				sb.append(TAB + TAB + "if(!/^[a-zA-Z]*$/.test(document.forms[0]." + fd.getIdName() + ".value))" + NL);
-				sb.append(TAB + TAB + "{" + NL);
-				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + " in Alphabets only\");" + NL);
-				sb.append(TAB + TAB + TAB + "document.forms[0]." + fd.getIdName() + ".focus();" + NL);
-				sb.append(TAB + TAB + TAB + "return false;" + NL);
-				sb.append(TAB + TAB + "}" + NL);
-			} else if ("ALPHANUM".equals(valType)) {
-				sb.append(TAB + TAB + "if(!/^[a-zA-Z0-9]*$/.test(document.forms[0]." + fd.getIdName() + ".value))" + NL);
-				sb.append(TAB + TAB + "{" + NL);
-				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + " in Alphanumeric only\");" + NL);
-				sb.append(TAB + TAB + TAB + "document.forms[0]." + fd.getIdName() + ".focus();" + NL);
-				sb.append(TAB + TAB + TAB + "return false;" + NL);
-				sb.append(TAB + TAB + "}" + NL);
-			}
-		}
-
-		sb.append(TAB + TAB + "return true;" + NL);
-		sb.append("}" + NL);
-
-		writeToFile(sb.toString(), basePath + "javascripts" + File.separator + menuName + File.separator + menuName + "_crit_link.js");
-		System.out.println("Generated: javascripts/" + menuName + "/" + menuName + "_crit_link.js");
-	}
-
-	// ===================== DET LINK JS (Validation) =====================
-
-	private void generateDetLinkJS(ArrayList<?> fieldList, String basePath) {
-		StringBuffer sb = new StringBuffer();
-		sb.append("<!--\tThis is getting executing on click of submit and validate button -->" + NL);
-		sb.append("function fnValidateData() {" + NL);
-		sb.append(TAB + TAB + "if (!fnCheckMandatoryFields())" + NL);
-		sb.append(TAB + TAB + "{" + NL);
-		sb.append(TAB + TAB + TAB + "return false;" + NL);
-		sb.append(TAB + TAB + "}" + NL);
-
-		for (int i = 0; i < fieldList.size(); i++) {
-			FieldDetails fd = (FieldDetails) fieldList.get(i);
-			if (!"N".equals(fd.getIsKeyfld())) continue; // Only data fields
-
-			String lit = (fd.getLiteralName() != null) ? fd.getLiteralName() : fd.getIdName();
-			String valType = fd.getValidationType();
-			String fieldType = fd.getFieldType();
+			String fieldType = safe(fd.getFieldType(), "a");
 			String fldRef = ("e".equals(fieldType)) ? fd.getIdName() + "_ui" : fd.getIdName();
+			String customVal = fd.getCustomValidation();
 
+			// Mandatory check using cd_atf_functions helper
 			if ("Y".equals(fd.getMandatory())) {
-				sb.append(TAB + TAB + "if(fnIsNull(document.forms[0]." + fldRef + ".value))" + NL);
-				sb.append(TAB + TAB + "{" + NL);
-				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + "\");" + NL);
-				sb.append(TAB + TAB + TAB + "document.forms[0]." + fldRef + ".focus();" + NL);
-				sb.append(TAB + TAB + TAB + "return false;" + NL);
-				sb.append(TAB + TAB + "}" + NL);
+				sb.append(TAB + TAB + "if(!checkFieldMandatory(\"" + fldRef + "\", \"Enter " + lit + "\")) { return false; }" + NL);
 			}
 
+			// Special character blocking for text fields
+			if ("a".equals(fieldType) || "b".equals(fieldType) || "c".equals(fieldType)) {
+				sb.append(TAB + TAB + "if(!fnBlockSpecialCharacters(document.forms[0]." + fldRef + ")) { return false; }" + NL);
+			}
+
+			// Validation type checks (kept as-is, no cd_atf_functions equivalent)
 			if ("NUM".equals(valType)) {
 				sb.append(TAB + TAB + "if(isNaN(document.forms[0]." + fldRef + ".value))" + NL);
 				sb.append(TAB + TAB + "{" + NL);
@@ -1284,6 +1302,91 @@ public class FrontEndGeneration {
 				sb.append(TAB + TAB + TAB + "return false;" + NL);
 				sb.append(TAB + TAB + "}" + NL);
 			}
+
+			// Custom validation function
+			if (customVal != null && !customVal.isEmpty()) {
+				sb.append(TAB + TAB + "if(!" + customVal + "()) { return false; }" + NL);
+			}
+		}
+
+		sb.append(TAB + TAB + "return true;" + NL);
+		sb.append("}" + NL);
+
+		writeToFile(sb.toString(), basePath + "javascripts" + File.separator + menuName + File.separator + menuName + "_crit_link.js");
+		System.out.println("Generated: javascripts/" + menuName + "/" + menuName + "_crit_link.js");
+	}
+
+	// ===================== DET LINK JS - ENHANCED VALIDATION =====================
+
+	private void generateDetLinkJS(ArrayList<?> fieldList, String basePath) {
+		StringBuffer sb = new StringBuffer();
+		sb.append("<!--\tThis is getting executing on click of submit and validate button -->" + NL);
+		sb.append("function fnValidateData() {" + NL);
+		sb.append(TAB + TAB + "if (!fnCheckMandatoryFields())" + NL);
+		sb.append(TAB + TAB + "{" + NL);
+		sb.append(TAB + TAB + TAB + "return false;" + NL);
+		sb.append(TAB + TAB + "}" + NL);
+
+		for (int i = 0; i < fieldList.size(); i++) {
+			FieldDetails fd = (FieldDetails) fieldList.get(i);
+			if (!"N".equals(fd.getIsKeyfld())) continue; // Only data fields
+
+			String lit = (fd.getLiteralName() != null) ? fd.getLiteralName() : fd.getIdName();
+			String valType = fd.getValidationType();
+			String fieldType = safe(fd.getFieldType(), "a");
+			String fldRef = ("e".equals(fieldType)) ? fd.getIdName() + "_ui" : fd.getIdName();
+			String customVal = fd.getCustomValidation();
+
+			// Mandatory check using cd_atf_functions helper
+			if ("Y".equals(fd.getMandatory())) {
+				sb.append(TAB + TAB + "if(!checkFieldMandatory(\"" + fldRef + "\", \"Enter " + lit + "\")) { return false; }" + NL);
+			}
+
+			// Special character blocking for text fields
+			if ("a".equals(fieldType) || "b".equals(fieldType) || "c".equals(fieldType)) {
+				sb.append(TAB + TAB + "if(!fnBlockSpecialCharacters(document.forms[0]." + fldRef + ")) { return false; }" + NL);
+			}
+
+			// Date validation using cd_atf_functions helpers
+			if ("e".equals(fieldType) && customVal != null && !customVal.isEmpty()) {
+				if ("AFTER_BOD".equals(customVal)) {
+					sb.append(TAB + TAB + "if(!dateAfterBoDDate(\"" + fd.getIdName() + "_ui\", BODDate, \"" + lit + " must be after BOD Date\")) { return false; }" + NL);
+				} else if ("BEFORE_BOD".equals(customVal)) {
+					sb.append(TAB + TAB + "if(!dateBeforeBoDDate(\"" + fd.getIdName() + "_ui\", BODDate, \"" + lit + " must be before BOD Date\")) { return false; }" + NL);
+				} else {
+					// Custom validation function
+					sb.append(TAB + TAB + "if(!" + customVal + "()) { return false; }" + NL);
+				}
+			}
+
+			// Validation type checks
+			if ("NUM".equals(valType)) {
+				sb.append(TAB + TAB + "if(isNaN(document.forms[0]." + fldRef + ".value))" + NL);
+				sb.append(TAB + TAB + "{" + NL);
+				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + " in Numbers\");" + NL);
+				sb.append(TAB + TAB + TAB + "document.forms[0]." + fldRef + ".focus();" + NL);
+				sb.append(TAB + TAB + TAB + "return false;" + NL);
+				sb.append(TAB + TAB + "}" + NL);
+			} else if ("ALPHA".equals(valType)) {
+				sb.append(TAB + TAB + "if(!/^[a-zA-Z]*$/.test(document.forms[0]." + fldRef + ".value))" + NL);
+				sb.append(TAB + TAB + "{" + NL);
+				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + " in Alphabets only\");" + NL);
+				sb.append(TAB + TAB + TAB + "document.forms[0]." + fldRef + ".focus();" + NL);
+				sb.append(TAB + TAB + TAB + "return false;" + NL);
+				sb.append(TAB + TAB + "}" + NL);
+			} else if ("ALPHANUM".equals(valType)) {
+				sb.append(TAB + TAB + "if(!/^[a-zA-Z0-9]*$/.test(document.forms[0]." + fldRef + ".value))" + NL);
+				sb.append(TAB + TAB + "{" + NL);
+				sb.append(TAB + TAB + TAB + "alert(\"Enter " + lit + " in Alphanumeric only\");" + NL);
+				sb.append(TAB + TAB + TAB + "document.forms[0]." + fldRef + ".focus();" + NL);
+				sb.append(TAB + TAB + TAB + "return false;" + NL);
+				sb.append(TAB + TAB + "}" + NL);
+			}
+
+			// Custom validation for non-date fields
+			if (!"e".equals(fieldType) && customVal != null && !customVal.isEmpty()) {
+				sb.append(TAB + TAB + "if(!" + customVal + "()) { return false; }" + NL);
+			}
 		}
 
 		sb.append(TAB + TAB + "return true;" + NL + NL);
@@ -1293,7 +1396,7 @@ public class FrontEndGeneration {
 		System.out.println("Generated: javascripts/" + menuName + "/" + menuName + "_det_link.js");
 	}
 
-	// ===================== PRODUCT MENU JSP =====================
+	// ===================== PRODUCT MENU JSP (UNCHANGED) =====================
 
 	public void generateProductMenuJSP(ArrayList<?> fieldList, String basePath) {
 		if (!basePath.endsWith(File.separator))

@@ -19,6 +19,16 @@ public class FieldDetails {
 	private String fieldType;
 	private String fieldTypeValues;
 	private String validationType;
+	// New columns for cd_atf_functions helper utilization
+	private String onBlurFunction;      // col 16: custom onBlur handler name
+	private String searcherConfig;      // col 17: searcher config for type b/c
+	private String customValidation;    // col 18: custom validation function name
+	private String htmlAttributes;      // col 19: extra HTML attributes
+	private String sectionName;         // col 20: section/group name for sub-headers
+	private String layoutPosition;      // col 21: L/R/FULL for side-by-side layout
+	// For value:label dropdown/radio support (derived from fieldTypeValues parsing)
+	private String fieldTypeLabels;     // display labels for d/f (e.g., "Cash,Transfer")
+	private String fieldTypeValueCodes; // submit values for d/f (e.g., "C,T")
 
 	public String getIdName() {
 		return idName;
@@ -115,5 +125,53 @@ public class FieldDetails {
 	}
 	public void setValidationType(String validationType) {
 		this.validationType = validationType;
+	}
+	public String getOnBlurFunction() {
+		return onBlurFunction;
+	}
+	public void setOnBlurFunction(String onBlurFunction) {
+		this.onBlurFunction = onBlurFunction;
+	}
+	public String getSearcherConfig() {
+		return searcherConfig;
+	}
+	public void setSearcherConfig(String searcherConfig) {
+		this.searcherConfig = searcherConfig;
+	}
+	public String getCustomValidation() {
+		return customValidation;
+	}
+	public void setCustomValidation(String customValidation) {
+		this.customValidation = customValidation;
+	}
+	public String getHtmlAttributes() {
+		return htmlAttributes;
+	}
+	public void setHtmlAttributes(String htmlAttributes) {
+		this.htmlAttributes = htmlAttributes;
+	}
+	public String getSectionName() {
+		return sectionName;
+	}
+	public void setSectionName(String sectionName) {
+		this.sectionName = sectionName;
+	}
+	public String getLayoutPosition() {
+		return layoutPosition;
+	}
+	public void setLayoutPosition(String layoutPosition) {
+		this.layoutPosition = layoutPosition;
+	}
+	public String getFieldTypeLabels() {
+		return fieldTypeLabels;
+	}
+	public void setFieldTypeLabels(String fieldTypeLabels) {
+		this.fieldTypeLabels = fieldTypeLabels;
+	}
+	public String getFieldTypeValueCodes() {
+		return fieldTypeValueCodes;
+	}
+	public void setFieldTypeValueCodes(String fieldTypeValueCodes) {
+		this.fieldTypeValueCodes = fieldTypeValueCodes;
 	}
 }
